@@ -1,7 +1,5 @@
 ; setsp for x86-64
 
-section .text
-
 global setsp
 ; void setsp(void *ptr)
 setsp:
