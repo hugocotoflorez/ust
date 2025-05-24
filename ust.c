@@ -35,20 +35,12 @@ ust_init(Thr *thr, __subrutine_call func, void *args)
         for (i = 0; i <= UST_MAX_THREADS; i++) {
                 if (alive_threads[i] == NULL) {
                         alive_threads[i] = thr;
-                        printf("New thread (dup): \n"
+                        printf("New thread: \n"
                                "  sp   = %p\n"
                                "  func = %p\n"
-                               "  args = %p\n",
-                               "  id   = %d\n",
+                               "  args = %p\n"
+                               "  id = %d\n",
                                thr->sp, thr->func, thr->args, i);
-                        printf("New thread (saved): \n"
-                               "  sp   = %p\n"
-                               "  func = %p\n"
-                               "  args = %p\n",
-                               "  id   = %d\n",
-                               alive_threads[i]->sp,
-                               alive_threads[i]->func,
-                               alive_threads[i]->args, i);
                         return;
                 }
         }
