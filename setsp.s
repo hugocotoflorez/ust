@@ -6,6 +6,11 @@ setsp:
         lea rsp, [rdi] ; set stack to custom address
         ret
 
+global getsp
+; void *getsp(void)
+getsp:
+        lea rax, [rsp] ; return sp
+        ret
 
 global set_spret
 ; void set_spret(void *ptr)

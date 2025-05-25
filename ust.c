@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <setjmp.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,9 +12,11 @@ static int current_thread_index = 0;
 void *
 alloc_stack()
 {
-        void *s = malloc(UST_STACK_SIZE);
+        uintptr_t s = (uintptr_t) malloc(UST_STACK_SIZE);
         assert(s);
-        return s + UST_STACK_SIZE;
+        s += UST_STACK_SIZE; // upper bound
+        s &= ~0xF; // align
+        return (void *) s;
 }
 
 /* Execute a function in their stack and return to parent stack once
@@ -29,7 +32,7 @@ ust_init(Thr *thr, __subrutine_call func, void *args)
                         thr->args = args;
                         thr->id = i;
                         alive_threads[i] = thr;
-                        debug_printf("New thread with func %p\n", thr->func);
+                        // debug_printf("New thread with func %p\n", thr->func);
                         return;
                 }
         }
@@ -40,20 +43,14 @@ ust_init(Thr *thr, __subrutine_call func, void *args)
 void
 ust_run(Thr *thr)
 {
-        debug_printf("Before setsp\n");
         thr->sp = set_spret(thr->sp);
         setsp(thr->sp);
-        debug_printf("After setsp\n");
-        if (!thr->init) {
-                debug_printf("Running funcion %p for the first time!\n", thr->func);
-                thr->init = 1;
-                thr->func(thr->args);
-                debug_printf("Returning from function %p\n", thr->func);
-                alive_threads[thr->id] = NULL;
-        } else {
-                debug_printf("Longjumping\n");
-                longjmp(&thr->runenv, 1);
-        }
+
+        if (thr->init) longjmp(thr->runenv, 1);
+
+        thr->init = 1;
+        thr->retval = thr->func(thr->args);
+        alive_threads[thr->id] = NULL;
 }
 
 
@@ -62,16 +59,15 @@ int
 ust_switch()
 {
         Thr *t = alive_threads[current_thread_index];
-        if (t && setjmp(&t->runenv)) // save current thread execution state
-                return 0;
+        static int init = 0;
+        if (t && setjmp(t->runenv)) return 0; // save current thread execution state
+        if (t && (init++)) t->sp = getsp(); // do not change sp if it is not set and used yet
 
-        for (int offset = 0; offset <= UST_MAX_THREADS; offset++) {
+        for (int offset = 0; offset < UST_MAX_THREADS; offset++) {
                 current_thread_index = (current_thread_index + 1) % UST_MAX_THREADS;
-                t = alive_threads[current_thread_index];
-                if (t) {
-                        debug_printf("before ust_run\n");
+                if ((t = alive_threads[current_thread_index])) {
                         ust_run(t);
-                        debug_printf("after ust_run\n");
+                        // printf("\n");
                         return 1;
                 }
         }
