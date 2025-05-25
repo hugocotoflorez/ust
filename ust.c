@@ -3,11 +3,18 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ust.h"
 
-static Thr *alive_threads[UST_MAX_THREADS] = { 0 };
+static Thr *alive_threads[UST_MAX_THREADS];
 static int current_thread_index = 0;
+
+__attribute__((constructor)) static void
+__ust_init__()
+{
+        memset(alive_threads, 0, sizeof alive_threads);
+}
 
 void *
 alloc_stack()
@@ -32,7 +39,6 @@ ust_init(Thr *thr, __subrutine_call func, void *args)
                         thr->args = args;
                         thr->id = i;
                         alive_threads[i] = thr;
-                        // debug_printf("New thread with func %p\n", thr->func);
                         return;
                 }
         }
@@ -43,14 +49,12 @@ ust_init(Thr *thr, __subrutine_call func, void *args)
 void
 ust_run(Thr *thr)
 {
-        thr->sp = set_spret(thr->sp);
-        setsp(thr->sp);
-
         if (thr->init) longjmp(thr->runenv, 1);
 
+        thr->sp = set_spret(thr->sp);
+        setsp(thr->sp);
         thr->init = 1;
         thr->retval = thr->func(thr->args);
-        alive_threads[thr->id] = NULL;
 }
 
 
@@ -61,13 +65,12 @@ ust_switch()
         Thr *t = alive_threads[current_thread_index];
         static int init = 0;
         if (t && setjmp(t->runenv)) return 0; // save current thread execution state
-        if (t && (init++)) t->sp = getsp(); // do not change sp if it is not set and used yet
 
         for (int offset = 0; offset < UST_MAX_THREADS; offset++) {
                 current_thread_index = (current_thread_index + 1) % UST_MAX_THREADS;
                 if ((t = alive_threads[current_thread_index])) {
                         ust_run(t);
-                        // printf("\n");
+                        alive_threads[current_thread_index] = NULL;
                         return 1;
                 }
         }
@@ -85,4 +88,9 @@ ust_loop()
                 ; // runing until all processes are done
 
         longjmp(&env, 1);
+}
+
+void inline ust_yield()
+{
+        ust_switch();
 }

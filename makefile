@@ -1,6 +1,6 @@
 all:
-	nasm -g -f elf64 setsp.s
+	nasm -g -f elf64 sp.s
 	nasm -g -f elf64 mutex.s
-	gcc setsp.o mutex.o ust.c test.c -O0 -o ust
+	gcc sp.o mutex.o ust.c test.c -O0 -ggdb -o ust
 	rm *.o
 

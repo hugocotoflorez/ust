@@ -3,13 +3,6 @@
 #define UST_STACK_SIZE 4096
 #define UST_MAX_THREADS 16
 
-#define UST_DEBUG 1
-#if defined(UST_DEBUG) && UST_DEBUG
-#define debug_printf(format, ...) printf(format, ##__VA_ARGS__)
-#else
-#define debug_printf(format, ...)
-#endif
-
 extern void setsp(void *);
 extern void *getsp(void);
 extern void *set_spret(void *);
@@ -40,4 +33,5 @@ typedef struct {
 
 
 void ust_init(Thr *thr, __subrutine_call func, void *args);
+void ust_yield();
 void ust_loop();
